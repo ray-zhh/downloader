@@ -16,9 +16,24 @@ type Downloader struct {
 	OutputPath string          // 输出文件路径
 	ChunkSize  int64           // 分块大小
 	Concurrent int             // 并发数
+	RetryCount int             // 重试次数
 	mutex      sync.Mutex      // 互斥锁
 	Ctx        context.Context // 上下文
 	CancelFunc func()          // 取消函数
+}
+
+type Option func(downloader *Downloader)
+
+func WithChunkSize(chunkSize int64) Option {
+	return func(downloader *Downloader) {
+		downloader.ChunkSize = chunkSize
+	}
+}
+
+func WithConcurrent(concurrent int) Option {
+	return func(downloader *Downloader) {
+		downloader.Concurrent = concurrent
+	}
 }
 
 type Task struct {
@@ -33,23 +48,30 @@ type Chunk struct {
 	End   int64
 }
 
-func NewDownloader(url string, outputPath string) *Downloader {
-	return &Downloader{
+func NewDownloader(url string, outputPath string, options ...Option) *Downloader {
+	downloader := &Downloader{
 		Url:        url,
 		OutputPath: outputPath,
-		ChunkSize:  5 * 1024 * 1024,
+		ChunkSize:  5 * 124 * 1024,
 		Concurrent: 5,
+		mutex:      sync.Mutex{},
 	}
+
+	for _, option := range options {
+		option(downloader)
+	}
+
+	return downloader
 }
 
 func (d *Downloader) Run(ctx context.Context) error {
 	d.Ctx, d.CancelFunc = context.WithCancel(ctx)
-
 	// 解析下载任务
 	task, err := d.newTask()
 	if err != nil {
 		return fmt.Errorf("初始化下载任务错误: %s", err)
 	}
+	fmt.Println(fmt.Sprintf("初始化任务成功, 并发: %d, 分片大小: %d, 分片数量: %d", d.Concurrent, d.ChunkSize, len(task.Chunks)))
 
 	// 创建目标文件
 	file, err := os.OpenFile(d.OutputPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)

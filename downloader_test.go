@@ -9,7 +9,10 @@ func TestDownloader_Run(t *testing.T) {
 	url := "https://hf-mirror.com/Kijai/MoGe_safetensors/resolve/main/MoGe_ViT_L_fp16.safetensors"
 	outputPath := "C:\\Users\\Administrator\\Desktop\\test\\MoGe_ViT_L_fp16.safetensors"
 
-	downloader := NewDownloader(url, outputPath)
+	downloader := NewDownloader(url, outputPath,
+		WithChunkSize(10*1024*1024),
+		WithConcurrent(20),
+	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
